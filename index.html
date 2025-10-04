@@ -1,0 +1,165 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks – 昨日/今日/しばらく</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;background:#fff;color:#222;padding:16px}
+  h2{margin:4px 0 8px;font-size:16px}
+  .card{border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:16px}
+  .date{font-size:12px;opacity:.6;margin-left:6px}
+  ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  li{display:flex;align-items:center;gap:8px;border:1px solid #f0f0f0;border-radius:12px;padding:10px}
+  li.done{opacity:.55;text-decoration:line-through}
+  .title{flex:1}
+  .row{display:flex;gap:8px;margin-top:10px}
+  input[type=text]{flex:1;padding:10px;border:1px solid #ddd;border-radius:12px}
+  button{padding:10px 12px;border:1px solid #ddd;background:#fafafa;border-radius:12px;cursor:pointer}
+  .muted{font-size:12px;opacity:.6;margin-top:6px}
+</style>
+<body>
+  <h1 style="font-size:18px;margin:0 0 12px">昨日・今日・しばらく</h1>
+
+  <div class="card">
+    <h2>昨日のタスク <span class="date" id="yd"></span></h2>
+    <ul id="yList"></ul>
+  </div>
+
+  <div class="card">
+    <h2>今日のタスク <span class="date" id="td"></span></h2>
+    <ul id="tList"></ul>
+    <div class="row">
+      <input id="tInput" type="text" placeholder="今日のタスクを追加…">
+      <button id="tAdd">追加</button>
+    </div>
+    <div class="muted">※ 毎朝、Googleカレンダー予定が自動で入ります</div>
+  </div>
+
+  <div class="card">
+    <h2>しばらくのタスク</h2>
+    <ul id="sList"></ul>
+    <div class="row">
+      <input id="sInput" type="text" placeholder="しばらくのタスクを追加…">
+      <button id="sAdd">追加</button>
+    </div>
+  </div>
+
+<script>
+const syncUrl = "https://script.google.com/macros/s/AKfycbw5cai_OASmCULa4DEOUuxQPWs4eDuSOaG_UB5d62ujw6UMrcKTFmZtwlMF4n25DOnY/exec"; // ←差し替え
+const syncId  = "namamiso"; // ←任意のID（ページ間で共有する名前）
+
+const stateKey = "tasks-state";
+let state = loadLocal() || {version:1, updatedAt:0, tasks:[], settings:{syncUrl, syncId}};
+
+function saveLocal(){ localStorage.setItem(stateKey, JSON.stringify(state)); }
+function loadLocal(){ try{ return JSON.parse(localStorage.getItem(stateKey)); } catch{ return null; } }
+function ymd(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
+
+const today = new Date();
+const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+const TODAY = ymd(today), YDAY = ymd(yesterday);
+document.getElementById('td').textContent = TODAY;
+document.getElementById('yd').textContent = YDAY;
+
+/* ===== JSONP 読み込み ===== */
+function pull(){
+  return new Promise(res=>{
+    const cb = `cb_${Date.now()}`;
+    window[cb] = (payload)=>{
+      try{
+        if (payload.ok){
+          const remote = payload.state;
+          if (!state || remote.updatedAt > state.updatedAt){ state = remote; saveLocal(); }
+        }
+      } finally {
+        delete window[cb];
+        s.remove();
+        res();
+      }
+    };
+    const s = document.createElement('script');
+    s.src = `${syncUrl}?op=get&id=${encodeURIComponent(syncId)}&callback=${cb}`;
+    document.body.appendChild(s);
+  });
+}
+
+/* ===== no-cors 保存 ===== */
+let saveTimer=null;
+function pushDebounced(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    state.updatedAt = Date.now();
+    saveLocal();
+    fetch(`${syncUrl}?op=set&id=${encodeURIComponent(syncId)}`, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain'}, // ← JSONでも text/plain で送る
+      body: JSON.stringify({state})
+    });
+  }, 600);
+}
+
+/* ===== UI ===== */
+function render(){
+  const yList = document.getElementById('yList');
+  const tList = document.getElementById('tList');
+  const sList = document.getElementById('sList');
+  yList.innerHTML = tList.innerHTML = sList.innerHTML = '';
+
+  const byDate = (d)=> state.tasks.filter(t=>t.date===d);
+  const sometime = state.tasks.filter(t=>!t.date);
+
+  insert(yList, byDate(YDAY));
+  insert(tList, byDate(TODAY));
+  insert(sList, sometime);
+}
+
+function insert(ul, items){
+  if (!items.length){
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="muted">まだありません</span>';
+    ul.appendChild(li); return;
+  }
+  for (const it of items){
+    const li = document.createElement('li');
+    if (it.done) li.classList.add('done');
+
+    const cb = document.createElement('input');
+    cb.type='checkbox'; cb.checked=it.done;
+    cb.addEventListener('change', ()=>{ it.done=!it.done; pushDebounced(); render(); });
+
+    const title = document.createElement('div');
+    title.className='title'; title.textContent=it.text;
+
+    const del = document.createElement('button');
+    del.textContent='削除';
+    del.addEventListener('click', ()=>{
+      state.tasks = state.tasks.filter(x=>x.id!==it.id);
+      pushDebounced(); render();
+    });
+
+    li.append(cb,title,del);
+    ul.appendChild(li);
+  }
+}
+
+/* ===== 追加 ===== */
+document.getElementById('tAdd').addEventListener('click', ()=>{
+  const inp = document.getElementById('tInput'); const v = (inp.value||'').trim(); if(!v) return;
+  state.tasks.push({id:crypto.randomUUID(), text:v, date:TODAY, done:false, source:'manual'}); inp.value='';
+  pushDebounced(); render();
+});
+document.getElementById('sAdd').addEventListener('click', ()=>{
+  const inp = document.getElementById('sInput'); const v = (inp.value||'').trim(); if(!v) return;
+  state.tasks.push({id:crypto.randomUUID(), text:v, date:"", done:false, source:'manual'}); inp.value='';
+  pushDebounced(); render();
+});
+
+/* ===== 初期処理 ===== */
+(async ()=>{
+  await pull();
+  render();
+  window.addEventListener('focus', async ()=>{ await pull(); render(); });
+  setInterval(async ()=>{ await pull(); render(); }, 30000);
+})();
+</script>
+</body>
