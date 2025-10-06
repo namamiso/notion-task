@@ -143,16 +143,55 @@ function insert(ul, items){
 }
 
 /* ===== 追加 ===== */
-document.getElementById('tAdd').addEventListener('click', ()=>{
-  const inp = document.getElementById('tInput'); const v = (inp.value||'').trim(); if(!v) return;
-  state.tasks.push({id:crypto.randomUUID(), text:v, date:TODAY, done:false, source:'manual'}); inp.value='';
+<script>
+// ...（省略）...
+
+function addTodayTask() {
+  const inp = document.getElementById('tInput');
+  const v = (inp.value || '').trim();
+  if (!v) return;
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: TODAY, done: false, source: 'manual' });
+  inp.value = '';
   pushDebounced(); render();
-});
-document.getElementById('sAdd').addEventListener('click', ()=>{
-  const inp = document.getElementById('sInput'); const v = (inp.value||'').trim(); if(!v) return;
-  state.tasks.push({id:crypto.randomUUID(), text:v, date:"", done:false, source:'manual'}); inp.value='';
+}
+
+function addSometimeTask() {
+  const inp = document.getElementById('sInput');
+  const v = (inp.value || '').trim();
+  if (!v) return;
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: "", done: false, source: 'manual' });
+  inp.value = '';
   pushDebounced(); render();
-});
+}
+
+// クリックでも追加
+document.getElementById('tAdd').addEventListener('click', addTodayTask);
+document.getElementById('sAdd').addEventListener('click', addSometimeTask);
+<script>
+// ...（省略）...
+
+function addTodayTask() {
+  const inp = document.getElementById('tInput');
+  const v = (inp.value || '').trim();
+  if (!v) return;
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: TODAY, done: false, source: 'manual' });
+  inp.value = '';
+  pushDebounced(); render();
+}
+
+function addSometimeTask() {
+  const inp = document.getElementById('sInput');
+  const v = (inp.value || '').trim();
+  if (!v) return;
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: "", done: false, source: 'manual' });
+  inp.value = '';
+  pushDebounced(); render();
+}
+
+// クリックでも追加
+document.getElementById('tAdd').addEventListener('click', addTodayTask);
+document.getElementById('sAdd').addEventListener('click', addSometimeTask);
+
 
 /* ===== 初期処理 ===== */
 (async ()=>{
