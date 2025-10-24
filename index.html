@@ -2,48 +2,158 @@
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tasks – 昨日/今日/明日/しばらく</title>
+<title>Tasks – 日付別タスク</title>
 <style>
   :root{ --r:8px; --pad:8px; --gap:6px; --fs:14px; --fs-sm:12px; }
-
-  /* 余白全体を縮小（フォントサイズはそのまま） */
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;background:#fff;color:#222;padding:8px}
   h1{font-size:16px;margin:0 0 6px}
-
-  /* カード：パディング/マージンを最小限に */
   .card{border:1px solid #ececec;border-radius:var(--r);padding:8px 10px;margin-bottom:8px}
-
-  /* 見出し行の下に細い区切り線を入れて密度UP */
   h2{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:6px;padding-bottom:4px;border-bottom:1px solid #f0f0f0}
   .date{font-size:var(--fs-sm);opacity:.6}
-
-  /* リストは“行区切り線のみ”でボックスをやめる → 高密度 */
   ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
   li{display:flex;align-items:center;gap:8px;border-bottom:1px solid #f4f4f4;padding:4px 0}
   li:last-child{border-bottom:0}
   li.done{opacity:.55;text-decoration:line-through}
-
-  /* 1行省スペース表示（必要なら末尾…） */
   .title{flex:1;font-size:var(--fs);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
-  /* 入力行は最小の上下間隔で */
   .row{display:flex;gap:6px;margin-top:6px}
-
-  /* フォント/ボタンサイズは維持。周囲だけ詰める */
   input[type=text]{flex:1;padding:8px;border:1px solid #ddd;border-radius:var(--r);font-size:var(--fs)}
   button{padding:7px 10px;border:1px solid #ddd;background:#fafafa;border-radius:var(--r);cursor:pointer;font-size:var(--fs-sm)}
   .icon-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0}
-
   .muted{font-size:var(--fs-sm);opacity:.6;margin-top:4px}
+
+  /* ヘッダー */
+  .header-bar{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .header-bar .title{
+    font-size:16px;
+    font-weight:bold;
+    margin:0;
+    text-align:left;
+  }
+  .header-bar .month-header{
+    text-align:center;
+    font-weight:bold;
+    font-size:16px;
+  }
+  .header-bar .placeholder{
+    /* 空白の調整用 */
+    height:16px;
+  }
+
+  /* 日付スライダー */
+  .date-slider{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:12px 8px 16px;
+    margin-bottom:8px;
+    scroll-behavior:smooth;
+    scrollbar-width:thin;
+    scrollbar-color:#ddd transparent;
+  }
+  .date-slider::-webkit-scrollbar{
+    height:4px;
+  }
+  .date-slider::-webkit-scrollbar-track{
+    background:transparent;
+  }
+  .date-slider::-webkit-scrollbar-thumb{
+    background:#ddd;
+    border-radius:2px;
+  }
+  
+  .date-btn{
+    flex:0 0 auto;
+    width:48px;
+    height:48px;
+    border-radius:50%;
+    border:2px solid #e0e0e0;
+    background:linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:var(--fs-sm);
+    font-weight:500;
+    transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position:relative;
+    box-shadow:0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .date-btn:hover{
+    transform:translateY(-2px) scale(1.05);
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    border-color:#007acc;
+    background:linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+  }
+  
+  .date-btn.selected{
+    background:linear-gradient(135deg, #007acc 0%, #0056b3 100%);
+    color:#fff;
+    border-color:#007acc;
+    transform:translateY(-1px) scale(1.1);
+    box-shadow:0 6px 16px rgba(0,122,204,0.4);
+  }
+  
+  .date-btn.today{
+    border-color:#ff6b35;
+    background:linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    color:#ff6b35;
+    font-weight:600;
+  }
+  
+  .date-btn.today:hover{
+    background:linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+    color:#fff;
+    box-shadow:0 4px 12px rgba(255,107,53,0.3);
+  }
+  
+  .date-btn.today.selected{
+    background:linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+    color:#fff;
+    box-shadow:0 6px 16px rgba(255,107,53,0.5);
+  }
+  
+  /* 日付ボタンの曜日表示 */
+  .date-btn::after{
+    content:attr(data-day);
+    position:absolute;
+    bottom:-18px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:10px;
+    color:#666;
+    white-space:nowrap;
+    opacity:0.7;
+  }
+  
+  .date-btn.selected::after{
+    color:#007acc;
+    font-weight:600;
+  }
+  
+  .date-btn.today::after{
+    color:#ff6b35;
+    font-weight:600;
+  }
 </style>
 <body>
-  <h1>タスク</h1>
-
+  <!-- ヘッダーバー: 左にタイトル、中央に月表示、右は空白 -->
+  <div class="header-bar">
+    <div class="title">タスク</div>
+    <div id="monthHeader" class="month-header"></div>
+    <div class="placeholder"></div>
+  </div>
+  <!-- 日付スライダー -->
+  <div class="date-slider" id="dateSlider"></div>
   <div class="card">
     <h2>昨日のタスク <span class="date" id="yd"></span></h2>
     <ul id="yList"></ul>
   </div>
-
   <div class="card">
     <h2>今日のタスク <span class="date" id="td"></span></h2>
     <ul id="tList"></ul>
@@ -52,7 +162,6 @@
       <button id="tAdd">追加</button>
     </div>
   </div>
-
   <div class="card">
     <h2>明日のタスク <span class="date" id="tm"></span></h2>
     <ul id="mList"></ul>
@@ -61,7 +170,6 @@
       <button id="mAdd">追加</button>
     </div>
   </div>
-
   <div class="card">
     <h2>しばらくのタスク <span class="date">共通</span></h2>
     <ul id="sList"></ul>
@@ -70,7 +178,6 @@
       <button id="sAdd">追加</button>
     </div>
   </div>
-
 <script>
 /* ===== 設定 ===== */
 const syncUrl = "https://script.google.com/macros/s/AKfycbw5cai_OASmCULa4DEOUuxQPWs4eDuSOaG_UB5d62ujw6UMrcKTFmZtwlMF4n25DOnY/exec"; // ← あなたの /exec
@@ -82,13 +189,29 @@ let state = loadLocal() || {version:1, updatedAt:0, tasks:[], settings:{syncUrl,
 
 /* ===== 日付ユーティリティ ===== */
 function ymd(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
-const today = new Date();
-const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
-const tomorrow = new Date(today);  tomorrow.setDate(today.getDate()+1);
-const TODAY = ymd(today), YDAY = ymd(yesterday), TMR = ymd(tomorrow);
-document.getElementById('td').textContent = TODAY;
-document.getElementById('yd').textContent = YDAY;
-document.getElementById('tm').textContent = TMR;
+function mdd(d){ const m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${m}/${dd}`; }
+
+// 'YYYY-MM-DD' をローカルタイムの Date オブジェクトに変換
+function parseYMD(str){ const parts = str.split('-').map(Number); return new Date(parts[0], parts[1]-1, parts[2]); }
+
+// 実際の今日（runDaily用）
+const todayReal = new Date();
+const yesterdayReal = new Date(todayReal); yesterdayReal.setDate(todayReal.getDate()-1);
+const tomorrowReal = new Date(todayReal);  tomorrowReal.setDate(todayReal.getDate()+1);
+const TODAY = ymd(todayReal), YDAY = ymd(yesterdayReal), TMR = ymd(tomorrowReal);
+
+/* 選択中の日付（UI用） */
+// 選択中の基準日付と前日/翌日
+let selectedDate = TODAY;
+let selectedPrev;
+let selectedNext;
+{
+  const base = parseYMD(selectedDate);
+  const prev = new Date(base); prev.setDate(base.getDate()-1);
+  const next = new Date(base); next.setDate(base.getDate()+1);
+  selectedPrev = ymd(prev);
+  selectedNext = ymd(next);
+}
 
 /* ===== ローカル保存 ===== */
 function saveLocal(){ localStorage.setItem(stateKey, JSON.stringify(state)); }
@@ -135,6 +258,101 @@ function pushDebounced(){
   }, 500);
 }
 
+/* ===== 日付スライダーの生成 ===== */
+function generateDateRange(range=60){
+  const arr=[];
+  // range日前からrange日後まで
+  const base = new Date(todayReal);
+  base.setDate(base.getDate()-range);
+  for (let i=0; i<=range*2; i++){
+    const d = new Date(base);
+    d.setDate(base.getDate()+i);
+    arr.push(d);
+  }
+  return arr;
+}
+function renderDateSlider(){
+  const slider = document.getElementById('dateSlider');
+  slider.innerHTML = '';
+  const dates = generateDateRange();
+  const todayStr = TODAY;
+  
+  dates.forEach(d=>{
+    const dateStr = ymd(d);
+    const btn = document.createElement('button');
+    btn.className = 'date-btn';
+    btn.dataset.date = dateStr;
+    
+    // 曜日の略称を設定
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    btn.dataset.day = dayNames[d.getDay()];
+    
+    // 日付ボタンには日付のみ表示
+    btn.textContent = String(d.getDate());
+    
+    // 今日の日付の特別な処理
+    if (dateStr === todayStr) {
+      btn.classList.add('today');
+    }
+    
+    if (dateStr === selectedDate) btn.classList.add('selected');
+    
+    btn.addEventListener('click', ()=>{
+      selectedDate = dateStr;
+      // update prev/next using parse to avoid timezone offset
+      const base = parseYMD(selectedDate);
+      const prev = new Date(base); prev.setDate(base.getDate()-1);
+      const next = new Date(base); next.setDate(base.getDate()+1);
+      selectedPrev = ymd(prev);
+      selectedNext = ymd(next);
+      updateDateLabels();
+      updateMonthLabel();
+      renderDateSlider(); // re-render for highlight
+      render();
+    });
+    
+    // ホバー効果の追加
+    btn.addEventListener('mouseenter', ()=>{
+      btn.style.transform = 'translateY(-2px) scale(1.05)';
+    });
+    
+    btn.addEventListener('mouseleave', ()=>{
+      if (!btn.classList.contains('selected')) {
+        btn.style.transform = '';
+      }
+    });
+    
+    slider.appendChild(btn);
+  });
+  
+  // スムーズなスクロールで選択日を中央に配置
+  setTimeout(()=>{
+    const selectedEl = slider.querySelector('.date-btn.selected');
+    if (selectedEl){
+      const sliderRect = slider.getBoundingClientRect();
+      const elRect = selectedEl.getBoundingClientRect();
+      const offset = elRect.left - sliderRect.left - (sliderRect.width/2 - elRect.width/2);
+      slider.scrollTo({
+        left: slider.scrollLeft + offset,
+        behavior: 'smooth'
+      });
+    }
+  }, 100);
+}
+
+function updateDateLabels(){
+  document.getElementById('td').textContent = selectedDate;
+  document.getElementById('yd').textContent = selectedPrev;
+  document.getElementById('tm').textContent = selectedNext;
+}
+
+// 現在選択している日付の月を表示
+function updateMonthLabel(){
+  const base = parseYMD(selectedDate);
+  const month = base.getMonth()+1;
+  document.getElementById('monthHeader').textContent = `${month}月`;
+}
+
 /* ===== UI描画 ===== */
 function render(){
   const yList = document.getElementById('yList');
@@ -144,9 +362,9 @@ function render(){
   yList.innerHTML = tList.innerHTML = mList.innerHTML = sList.innerHTML = '';
 
   const byDate = (d)=> state.tasks.filter(t=>t.date===d);
-  insert(yList, byDate(YDAY));
-  insert(tList, byDate(TODAY));
-  insert(mList, byDate(TMR));
+  insert(yList, byDate(selectedPrev));
+  insert(tList, byDate(selectedDate));
+  insert(mList, byDate(selectedNext));
   insert(sList, state.tasks.filter(t=>!t.date));
 }
 
@@ -185,17 +403,17 @@ function insert(ul, items){
 /* ===== 追加（クリック/Enter共用） ===== */
 function addTodayTask(){
   const inp = document.getElementById('tInput'); const v = (inp.value||'').trim(); if (!v) return;
-  state.tasks.push({ id: crypto.randomUUID(), text: v, date: TODAY, done:false, source:'manual' });
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: selectedDate, done:false, source:'manual' });
   inp.value=''; pushDebounced(); render();
 }
 function addTomorrowTask(){
   const inp = document.getElementById('mInput'); const v = (inp.value||'').trim(); if (!v) return;
-  state.tasks.push({ id: crypto.randomUUID(), text: v, date: TMR,   done:false, source:'manual' });
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: selectedNext, done:false, source:'manual' });
   inp.value=''; pushDebounced(); render();
 }
 function addSometimeTask(){
   const inp = document.getElementById('sInput'); const v = (inp.value||'').trim(); if (!v) return;
-  state.tasks.push({ id: crypto.randomUUID(), text: v, date: "",    done:false, source:'manual' });
+  state.tasks.push({ id: crypto.randomUUID(), text: v, date: "", done:false, source:'manual' });
   inp.value=''; pushDebounced(); render();
 }
 
@@ -217,12 +435,21 @@ document.getElementById('sInput').addEventListener('keydown', e=>{
 
 /* ===== 初期処理 ===== */
 (async ()=>{
-  await runDaily(); // 昨日整理＋今日カレンダー取り込み
-  await pull();     // 最新取得
+  // 初期の日付ラベル更新およびスライダー生成
+  updateDateLabels();
+  updateMonthLabel();
+  renderDateSlider();
   render();
-
-  window.addEventListener('focus', async ()=>{ await pull(); render(); });
-  setInterval(async ()=>{ await pull(); render(); }, 30000);
+  // 非同期でリモート同期（完了後に再描画）
+  try{
+    await runDaily();
+    await pull();
+    render();
+  } catch (e) {
+    console.warn('remote sync failed', e);
+  }
+  window.addEventListener('focus', async ()=>{ try{ await pull(); render(); } catch(e){} });
+  setInterval(async ()=>{ try{ await pull(); render(); } catch(e){} }, 30000);
 })();
 </script>
 </body>
